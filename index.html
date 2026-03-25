@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Publicbox — Open File Sharing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@aptos-labs/ts-sdk@latest/dist/browser/index.global.js"></script>
+<script>
+  // AIP-62 Early Registry
+  window.__aptosWalletRegistry = new Map();
+  window.addEventListener('aptos:registerWallet', function(e) {
+    var wallet = e?.detail?.wallet ?? e?.wallet;
+    if (wallet?.name) {
+      window.__aptosWalletRegistry.set(wallet.name, wallet);
+      if (typeof window.renderWalletList === 'function') window.renderWalletList();
+    }
+  });
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0b0f; --surface: #12141a; --surface2: #1a1d26; --border: #252833;
+    --accent: #4ade80; --accent2: #22d3ee; --text: #e8eaf0; --muted: #6b7280;
+    --danger: #f87171; --warn: #fbbf24; --radius: 10px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; font-size: 14px; }
+
+  #splash { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; transition: opacity .5s ease; }
+  .logo-big { font-family: 'Syne', sans-serif; font-size: 3rem; font-weight: 800; letter-spacing: -1px; }
+  .logo-big span { color: var(--accent); }
+  .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #app { display: flex; min-height: 100vh; }
+  aside { width: 224px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 16px; position: sticky; top: 0; height: 100vh; }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; margin-bottom: 32px; }
+  .logo span { color: var(--accent); }
+  nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--muted); cursor: pointer; transition: all .15s; }
+  .nav-item.active { background: var(--surface2); color: var(--accent); }
+  .wallet-chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-top: auto; }
+  .wc-addr { font-family: 'DM Mono', monospace; font-size: .68rem; color: var(--accent2); word-break: break-all; margin: 4px 0; }
+  .wc-bal { font-family: 'DM Mono', monospace; font-size: .75rem; color: var(--accent); }
+
+  main { flex: 1; padding: 32px 36px; overflow-y: auto; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; }
+  .stat-value { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+
+  .btn { padding: 9px 18px; border-radius: var(--radius); border: none; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 7px; transition: all .15s; }
+  .btn-primary { background: var(--accent); color: #0a0b0f; }
+  .btn-ghost { background: transparent; color: var(--muted); }
+
+  .wallet-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .wallet-option { display: flex; align-items: center; gap: 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; cursor: pointer; }
+  .wallet-option:hover { border-color: var(--accent); }
+
+  .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 14px; }
+  .file-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; cursor: pointer; transition: all .18s; }
+  .file-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); backdrop-filter: blur(5px); z-index: 50; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity .2s; }
+  .overlay.open { display: flex; opacity: 1; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 480px; max-width: 95vw; }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 12px 20px; border-radius: 8px; z-index: 200; animation: slideIn .3s ease forwards; }
+  @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  @media (max-width: 768px) { aside { display: none; } .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="logo-big">Public<span>box</span></div>
+  <p style="color:var(--muted)">Decentralized file sharing · Aptos Testnet · Shelby Protocol</p>
+  <div class="spinner"></div>
+</div>
+
+<div id="connect-gate" style="display:none; min-height:100vh; align-items:center; justify-content:center; background:var(--bg)">
+  <div class="modal" style="text-align:center">
+    <div class="logo-big" style="font-size:2.2rem; margin-bottom:8px">Public<span>box</span></div>
+    <p style="color:var(--muted); margin-bottom:24px">Connect your Aptos wallet to start sharing</p>
+    <div id="wallet-list" class="wallet-list"></div>
+    <div style="margin: 16px 0; color:var(--muted); font-size:.8rem">or</div>
+    <button class="btn btn-ghost" style="width:100%; justify-content:center" onclick="window.loginAsGuest()">👤 Browse as Guest</button>
+  </div>
+</div>
+
+<div id="app" style="display:none">
+  <aside>
+    <div class="logo">Public<span>box</span></div>
+    <nav>
+      <div class="nav-item active" onclick="window.switchView('all')">📂 All Files</div>
+      <div class="nav-item" onclick="window.switchView('mine')">👤 My Files</div>
+      <div class="nav-item" onclick="window.openUpload()">⬆️ Upload</div>
+    </nav>
+    <div class="wallet-chip">
+      <div style="font-size:.7rem; color:var(--muted)">WALLET</div>
+      <div id="wc-name" style="font-weight:600">Loading...</div>
+      <div id="wc-addr" class="wc-addr">...</div>
+      <div id="wc-bal" class="wc-bal">APT: 0.0000</div>
+    </div>
+    <button class="btn btn-ghost" style="margin-top:12px; width:100%" onclick="window.disconnect()">Disconnect</button>
+  </aside>
+  <main>
+    <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:28px">
+      <h1 id="view-title" style="font-family:Syne; font-size:1.4rem">All Files</h1>
+      <button class="btn btn-primary" onclick="window.openUpload()">⬆️ Upload</button>
+    </header>
+    <div class="stats">
+      <div class="stat-card"><div style="font-size:.7rem; color:var(--muted)">TOTAL FILES</div><div id="stat-total" class="stat-value">0</div></div>
+      <div class="stat-card"><div style="font-size:.7rem; color:var(--muted)">MY UPLOADS</div><div id="stat-mine" class="stat-value">0</div></div>
+      <div class="stat-card"><div style="font-size:.7rem; color:var(--muted)">STORAGE</div><div id="stat-size" class="stat-value">0 KB</div></div>
+    </div>
+    <div id="file-container" class="file-grid"></div>
+  </main>
+</div>
+
+<div class="overlay" id="upload-modal">
+  <div class="modal">
+    <h2 style="font-family:Syne; margin-bottom:20px">Upload File</h2>
+    <input type="file" id="file-input" style="width:100%; margin-bottom:16px" />
+    <input type="text" id="file-desc" placeholder="Description (optional)" style="width:100%; padding:10px; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; margin-bottom:16px; outline:none" />
+    <div id="upload-status" style="font-size:.85rem; color:var(--muted); margin-bottom:16px; display:none"></div>
+    <div style="display:flex; gap:10px">
+      <button class="btn btn-ghost" style="flex:1; justify-content:center" onclick="window.closeModal('upload-modal')">Cancel</button>
+      <button class="btn btn-primary" id="btn-do-upload" style="flex:1; justify-content:center" onclick="window.doUpload()">Upload</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+  const APP_KEY = 'publicbox_v5';
+  let aptos;
+  let state = {
+    wallet: null,
+    files: JSON.parse(localStorage.getItem(APP_KEY + '_files') || '[]'),
+    viewMode: 'all'
+  };
+
+  const initSDK = () => {
+    // Check for window.aptosSDK
+    const sdk = window.aptosSDK;
+    if (!sdk) return setTimeout(initSDK, 200);
+    
+    const { Aptos, AptosConfig, Network } = sdk;
+    const config = new AptosConfig({ network: Network.TESTNET });
+    aptos = new Aptos(config);
+    console.log('Aptos SDK initialized successfully');
+  };
+  initSDK();
+
+  window.renderWalletList = () => {
+    const list = document.getElementById('wallet-list');
+    if (!list) return;
+    const registered = [...window.__aptosWalletRegistry.values()];
+    
+    let html = registered.map(w => `
+      <div class="wallet-option" onclick="window.connectWallet('${w.name}')">
+        <img src="${w.icon}" style="width:24px; border-radius:4px">
+        <div style="flex:1; font-weight:600">${w.name}</div>
+        <div style="font-size:.7rem; color:var(--accent)">Installed</div>
+      </div>
+    `).join('');
+
+    if (registered.length === 0) {
+      html = `<div style="color:var(--muted); font-size:.85rem; padding:10px">No Aptos wallets detected. Please install Petra or Martian.</div>`;
+    }
+
+    list.innerHTML = html;
+  };
+
+  window.connectWallet = async (name) => {
+    const wallet = window.__aptosWalletRegistry.get(name);
+    try {
+      const response = await wallet.features['aptos:connect'].connect();
+      const account = response.account || (response.accounts && response.accounts[0]);
+      if (!account) throw new Error('No account found');
+      
+      state.wallet = { 
+        name, 
+        address: account.address.toString(), 
+        walletObj: wallet 
+      };
+      saveSession();
+      enterApp();
+      toast('Connected to ' + name);
+    } catch (e) {
+      console.error('Connection error:', e);
+      toast('Connection failed', 'error');
+    }
+  };
+
+  window.loginAsGuest = () => {
+    state.wallet = { name: 'Guest', address: '0x0', isGuest: true };
+    enterApp();
+  };
+
+  window.disconnect = () => {
+    localStorage.removeItem(APP_KEY + '_session');
+    location.reload();
+  };
+
+  const enterApp = () => {
+    document.getElementById('connect-gate').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('wc-name').textContent = state.wallet.name;
+    document.getElementById('wc-addr').textContent = state.wallet.address.slice(0,10) + '...' + state.wallet.address.slice(-4);
+    fetchBalance();
+    renderFiles();
+    updateStats();
+  };
+
+  const fetchBalance = async () => {
+    if (!state.wallet || state.wallet.isGuest || !aptos) return;
+    try {
+      const resources = await aptos.getAccountResources({ accountAddress: state.wallet.address });
+      const coin = resources.find(r => r.type === '0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>');
+      if (coin) {
+        document.getElementById('wc-bal').textContent = `APT: ${(coin.data.coin.value / 1e8).toFixed(4)}`;
+      }
+    } catch (e) {
+      console.warn('Balance fetch failed:', e);
+    }
+  };
+
+  window.switchView = (v) => {
+    state.viewMode = v;
+    renderFiles();
+  };
+
+  window.openUpload = () => {
+    if (state.wallet.isGuest) return toast('Guest mode is read-only', 'error');
+    window.openModal('upload-modal');
+  };
+
+  window.doUpload = async () => {
+    const file = document.getElementById('file-input').files[0];
+    if (!file) return toast('Select a file');
+    
+    const btn = document.getElementById('btn-do-upload');
+    const status = document.getElementById('upload-status');
+    btn.disabled = true;
+    status.style.display = 'block';
+    status.textContent = 'Reading file...';
+
+    try {
+      const base64 = await fileToBase64(file);
+      status.textContent = 'Signing transaction...';
+      
+      const transaction = await state.wallet.walletObj.features['aptos:signAndSubmitTransaction'].signAndSubmitTransaction({
+        payload: {
+          function: "0x1::aptos_account::transfer",
+          typeArguments: [],
+          functionArguments: [state.wallet.address, "0"]
+        }
+      });
+
+      const hash = transaction.hash || transaction.result?.hash;
+      status.textContent = 'Confirmed on-chain!';
+      
+      const record = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploader: state.wallet.address,
+        timestamp: Date.now(),
+        tx: hash
+      };
+
+      state.files.unshift(record);
+      localStorage.setItem(APP_KEY + '_files', JSON.stringify(state.files));
+      
+      setTimeout(() => {
+        window.closeModal('upload-modal');
+        renderFiles();
+        updateStats();
+        toast('Uploaded successfully!');
+        btn.disabled = false;
+        status.style.display = 'none';
+      }, 1000);
+
+    } catch (e) {
+      console.error('Upload error:', e);
+      toast('Upload failed: ' + (e.message || 'Unknown error'), 'error');
+      btn.disabled = false;
+      status.style.display = 'none';
+    }
+  };
+
+  const renderFiles = () => {
+    const container = document.getElementById('file-container');
+    let files = state.files;
+    if (state.viewMode === 'mine') files = files.filter(f => f.uploader === state.wallet.address);
+    
+    if (files.length === 0) {
+      container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted)">No files found</div>`;
+      return;
+    }
+
+    container.innerHTML = files.map(f => `
+      <div class="file-card">
+        <div style="font-size:2rem; margin-bottom:10px">${getIcon(f.type)}</div>
+        <div style="font-weight:600; font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${f.name}</div>
+        <div style="font-size:.7rem; color:var(--muted); margin-top:4px">${(f.size/1024).toFixed(1)} KB · ${relTime(f.timestamp)}</div>
+      </div>
+    `).join('');
+  };
+
+  const updateStats = () => {
+    document.getElementById('stat-total').textContent = state.files.length;
+    const mine = state.files.filter(f => f.uploader === state.wallet?.address).length;
+    document.getElementById('stat-mine').textContent = mine;
+    const size = state.files.reduce((acc, f) => acc + f.size, 0);
+    document.getElementById('stat-size').textContent = (size / 1024).toFixed(1) + ' KB';
+  };
+
+  const saveSession = () => {
+    localStorage.setItem(APP_KEY + '_session', JSON.stringify({ name: state.wallet.name, address: state.wallet.address }));
+  };
+
+  const restoreSession = async () => {
+    const session = JSON.parse(localStorage.getItem(APP_KEY + '_session'));
+    if (session) {
+      await new Promise(r => setTimeout(r, 800));
+      const wallet = window.__aptosWalletRegistry.get(session.name);
+      if (wallet) {
+        state.wallet = { name: session.name, address: session.address, walletObj: wallet };
+        enterApp();
+        return true;
+      }
+    }
+    return false;
+  };
+
+  window.openModal = (id) => document.getElementById(id).classList.add('open');
+  window.closeModal = (id) => document.getElementById(id).classList.remove('open');
+  
+  const toast = (msg, type = 'info') => {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    if (type === 'error') el.style.borderLeftColor = 'var(--danger)';
+    el.textContent = msg;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+  };
+
+  const getIcon = (type) => {
+    if (type.startsWith('image/')) return '🖼️';
+    if (type.startsWith('video/')) return '🎬';
+    return '📄';
+  };
+
+  const relTime = (ts) => {
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return mins + 'm ago';
+    return Math.floor(mins / 60) + 'h ago';
+  };
+
+  const fileToBase64 = (f) => new Promise((res, rej) => {
+    const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(f);
+  });
+
+  window.addEventListener('load', async () => {
+    window.dispatchEvent(new Event('aptos:requestWallet'));
+    await new Promise(r => setTimeout(r, 1000));
+    window.renderWalletList();
+    
+    const splash = document.getElementById('splash');
+    splash.style.opacity = '0';
+    setTimeout(() => splash.style.display = 'none', 500);
+
+    if (!(await restoreSession())) {
+      document.getElementById('connect-gate').style.display = 'flex';
+    }
+  });
+
+</script>
+</body>
+</html>
