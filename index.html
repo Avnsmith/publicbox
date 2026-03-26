@@ -8,13 +8,12 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/@aptos-labs/ts-sdk@latest/dist/browser/index.global.js"></script>
 <script>
-  // AIP-62 Early Registry
   window.__aptosWalletRegistry = new Map();
   window.addEventListener('aptos:registerWallet', function(e) {
     var wallet = e?.detail?.wallet ?? e?.wallet;
     if (wallet?.name) {
       window.__aptosWalletRegistry.set(wallet.name, wallet);
-      if (typeof window.renderWalletList === 'function') window.renderWalletList();
+      if (typeof renderWalletList === 'function') renderWalletList();
     }
   });
 </script>
@@ -26,67 +25,118 @@
     --danger: #f87171; --warn: #fbbf24; --radius: 10px;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; font-size: 14px; }
+  html { font-size: 14px; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; overflow-x: hidden; }
 
   #splash { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; transition: opacity .5s ease; }
-  .logo-big { font-family: 'Syne', sans-serif; font-size: 3rem; font-weight: 800; letter-spacing: -1px; }
-  .logo-big span { color: var(--accent); }
+  #splash .logo-big { font-family: 'Syne', sans-serif; font-size: 3rem; font-weight: 800; letter-spacing: -1px; }
+  #splash .logo-big span { color: var(--accent); }
+  #splash p { color: var(--muted); font-size: .95rem; }
   .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   #app { display: flex; min-height: 100vh; }
-  aside { width: 224px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 16px; position: sticky; top: 0; height: 100vh; }
-  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; margin-bottom: 32px; }
+  aside { width: 224px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 16px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; letter-spacing: -.5px; margin-bottom: 32px; padding-left: 4px; }
   .logo span { color: var(--accent); }
   nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--muted); cursor: pointer; transition: all .15s; }
-  .nav-item.active { background: var(--surface2); color: var(--accent); }
-  .wallet-chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-top: auto; }
-  .wc-addr { font-family: 'DM Mono', monospace; font-size: .68rem; color: var(--accent2); word-break: break-all; margin: 4px 0; }
-  .wc-bal { font-family: 'DM Mono', monospace; font-size: .75rem; color: var(--accent); }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; color: var(--muted); cursor: pointer; font-size: .875rem; transition: all .15s; user-select: none; }
+  .nav-item:hover, .nav-item.active { background: var(--surface2); color: var(--text); }
+  .nav-item.active { color: var(--accent); }
+  .nav-icon { font-size: 1rem; width: 18px; text-align: center; }
+  aside footer { margin-top: auto; padding-top: 16px; }
+
+  .wallet-chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .wc-label { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 4px; }
+  .wc-name { font-size: .9rem; font-weight: 600; margin-bottom: 3px; }
+  .wc-addr { font-family: 'DM Mono', monospace; font-size: .68rem; color: var(--accent2); word-break: break-all; }
+  .wc-bal { font-family: 'DM Mono', monospace; font-size: .75rem; color: var(--accent); margin-top: 6px; }
+  .wdot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: inline-block; margin-right: 5px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .chain-row { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+  .chain-badge { display: inline-flex; align-items: center; gap: 4px; font-family: 'DM Mono', monospace; font-size: .64rem; background: rgba(74,222,128,.1); color: var(--accent); border: 1px solid rgba(74,222,128,.2); border-radius: 5px; padding: 2px 6px; }
+  .chain-badge.cyan { background: rgba(34,211,238,.1); color: var(--accent2); border-color: rgba(34,211,238,.2); }
 
   main { flex: 1; padding: 32px 36px; overflow-y: auto; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; gap: 12px; flex-wrap: wrap; }
+  .topbar h1 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.4rem; }
+  .topbar-right { display: flex; gap: 10px; align-items: center; }
+
+  .btn { padding: 9px 18px; border-radius: var(--radius); border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: .875rem; transition: all .15s; display: inline-flex; align-items: center; gap: 7px; }
+  .btn-primary { background: var(--accent); color: #0a0b0f; }
+  .btn-primary:hover { background: #86efac; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-ghost { background: transparent; color: var(--muted); border: 1px solid transparent; }
+  .btn-ghost:hover { color: var(--text); border-color: var(--border); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+
+  #connect-gate { position: fixed; inset: 0; z-index: 80; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+  .connect-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 40px; width: 420px; max-width: 95vw; text-align: center; }
+  .connect-card .brand { font-family: 'Syne', sans-serif; font-size: 2.2rem; font-weight: 800; margin-bottom: 8px; }
+  .connect-card .brand span { color: var(--accent); }
+  .connect-card .tagline { color: var(--muted); font-size: .9rem; margin-bottom: 8px; }
+  .connect-card .desc { color: var(--muted); font-size: .8rem; line-height: 1.6; margin-bottom: 28px; }
+  .wallet-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .wallet-option { display: flex; align-items: center; gap: 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; cursor: pointer; transition: all .18s; text-align: left; }
+  .wallet-option:hover { border-color: var(--accent); background: rgba(74,222,128,.04); }
+  .w-icon { font-size: 1.8rem; }
+  .w-badge { margin-left: auto; font-size: .7rem; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .badge-installed { background: rgba(74,222,128,.15); color: var(--accent); }
+  .badge-install { background: rgba(107,114,128,.15); color: var(--muted); }
+  .divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; color: var(--muted); font-size: .75rem; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
   .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; }
-  .stat-value { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 6px; }
+  .stat-value { font-family: 'Syne', sans-serif; font-size: 1.6rem; font-weight: 700; }
+  .stat-value.green { color: var(--accent); }
+  .stat-value.cyan { color: var(--accent2); }
 
-  .btn { padding: 9px 18px; border-radius: var(--radius); border: none; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 7px; transition: all .15s; }
-  .btn-primary { background: var(--accent); color: #0a0b0f; }
-  .btn-ghost { background: transparent; color: var(--muted); }
+  .search-bar { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 14px; margin-bottom: 22px; transition: border-color .15s; }
+  .search-bar input { flex: 1; background: transparent; border: none; outline: none; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: .875rem; }
+  
+  .drop-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 36px; text-align: center; margin-bottom: 28px; transition: all .2s; cursor: pointer; }
+  .drop-zone.drag-over { border-color: var(--accent); background: rgba(74,222,128,.04); }
+  .dz-icon { font-size: 1.8rem; margin-bottom: 8px; }
+  .drop-zone p { color: var(--muted); font-size: .875rem; }
 
-  .wallet-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
-  .wallet-option { display: flex; align-items: center; gap: 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; cursor: pointer; }
-  .wallet-option:hover { border-color: var(--accent); }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .section-title { font-family: 'Syne', sans-serif; font-weight: 600; font-size: .85rem; color: var(--muted); text-transform: uppercase; letter-spacing: .09em; }
 
   .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 14px; }
   .file-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; cursor: pointer; transition: all .18s; }
-  .file-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .file-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(74,222,128,.07); }
+  .fc-icon { font-size: 2rem; margin-bottom: 10px; }
+  .fc-name { font-weight: 500; font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; }
 
-  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); backdrop-filter: blur(5px); z-index: 50; display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity .2s; }
-  .overlay.open { display: flex; opacity: 1; }
-  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 480px; max-width: 95vw; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); backdrop-filter: blur(5px); z-index: 50; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 500px; max-width: 96vw; max-height: 92vh; overflow-y: auto; }
 
-  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 12px 20px; border-radius: 8px; z-index: 200; animation: slideIn .3s ease forwards; }
-  @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-  @media (max-width: 768px) { aside { display: none; } .stats { grid-template-columns: 1fr; } }
+  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 11px 16px; font-size: .82rem; display: flex; align-items: center; gap: 10px; animation: slideIn .25s ease forwards; }
+  @keyframes slideIn { from { transform: translateX(16px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 </style>
 </head>
 <body>
 
 <div id="splash">
   <div class="logo-big">Public<span>box</span></div>
-  <p style="color:var(--muted)">Decentralized file sharing · Aptos Testnet · Shelby Protocol</p>
+  <p>Decentralized file sharing · Aptos Testnet · Shelby Protocol</p>
   <div class="spinner"></div>
 </div>
 
-<div id="connect-gate" style="display:none; min-height:100vh; align-items:center; justify-content:center; background:var(--bg)">
-  <div class="modal" style="text-align:center">
-    <div class="logo-big" style="font-size:2.2rem; margin-bottom:8px">Public<span>box</span></div>
-    <p style="color:var(--muted); margin-bottom:24px">Connect your Aptos wallet to start sharing</p>
-    <div id="wallet-list" class="wallet-list"></div>
-    <div style="margin: 16px 0; color:var(--muted); font-size:.8rem">or</div>
-    <button class="btn btn-ghost" style="width:100%; justify-content:center" onclick="window.loginAsGuest()">👤 Browse as Guest</button>
+<div id="connect-gate" style="display:none">
+  <div class="connect-card">
+    <div class="brand">Public<span>box</span></div>
+    <div class="tagline">Open file sharing on Aptos + Shelby Protocol</div>
+    <div class="desc">Connect your Aptos wallet to upload and share files publicly.</div>
+    <div class="wallet-list" id="wallet-list"></div>
+    <div class="divider">or</div>
+    <button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="loginAsGuest()">👤 Browse as Guest</button>
   </div>
 </div>
 
@@ -94,49 +144,60 @@
   <aside>
     <div class="logo">Public<span>box</span></div>
     <nav>
-      <div class="nav-item active" onclick="window.switchView('all')">📂 All Files</div>
-      <div class="nav-item" onclick="window.switchView('mine')">👤 My Files</div>
-      <div class="nav-item" onclick="window.openUpload()">⬆️ Upload</div>
+      <div class="nav-item active" id="nav-all" onclick="switchView('all')"><span class="nav-icon">📂</span>All Files</div>
+      <div class="nav-item" id="nav-mine" onclick="switchView('mine')"><span class="nav-icon">👤</span>My Files</div>
+      <div class="nav-item" onclick="openUploadModal()"><span class="nav-icon">⬆️</span>Upload</div>
     </nav>
-    <div class="wallet-chip">
-      <div style="font-size:.7rem; color:var(--muted)">WALLET</div>
-      <div id="wc-name" style="font-weight:600">Loading...</div>
-      <div id="wc-addr" class="wc-addr">...</div>
-      <div id="wc-bal" class="wc-bal">APT: 0.0000</div>
-    </div>
-    <button class="btn btn-ghost" style="margin-top:12px; width:100%" onclick="window.disconnect()">Disconnect</button>
+    <footer>
+      <div class="wallet-chip">
+        <div class="wc-label"><span class="wdot"></span>Wallet</div>
+        <div class="wc-name" id="wc-name">—</div>
+        <div class="wc-addr" id="wc-addr">—</div>
+        <div class="wc-bal" id="wc-bal">APT: —</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;justify-content:center" onclick="disconnect()">Disconnect</button>
+    </footer>
   </aside>
+
   <main>
-    <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:28px">
-      <h1 id="view-title" style="font-family:Syne; font-size:1.4rem">All Files</h1>
-      <button class="btn btn-primary" onclick="window.openUpload()">⬆️ Upload</button>
-    </header>
-    <div class="stats">
-      <div class="stat-card"><div style="font-size:.7rem; color:var(--muted)">TOTAL FILES</div><div id="stat-total" class="stat-value">0</div></div>
-      <div class="stat-card"><div style="font-size:.7rem; color:var(--muted)">MY UPLOADS</div><div id="stat-mine" class="stat-value">0</div></div>
-      <div class="stat-card"><div style="font-size:.7rem; color:var(--muted)">STORAGE</div><div id="stat-size" class="stat-value">0 KB</div></div>
+    <div class="topbar">
+      <h1>All Files</h1>
+      <button class="btn btn-primary" onclick="openUploadModal()">⬆️ Upload</button>
     </div>
+
+    <div class="stats">
+      <div class="stat-card"><div class="stat-label">Total Files</div><div class="stat-value green" id="stat-total">0</div></div>
+      <div class="stat-card"><div class="stat-label">My Uploads</div><div class="stat-value cyan" id="stat-mine">0</div></div>
+      <div class="stat-card"><div class="stat-label">Storage Used</div><div class="stat-value" id="stat-size">0 KB</div></div>
+    </div>
+
+    <div class="drop-zone" id="drop-zone" onclick="openUploadModal()">
+      <div class="dz-icon">📦</div>
+      <p><b>Drop files here</b> or click to upload</p>
+    </div>
+
+    <div class="section-header"><div class="section-title">Public Files</div></div>
     <div id="file-container" class="file-grid"></div>
   </main>
 </div>
 
 <div class="overlay" id="upload-modal">
   <div class="modal">
-    <h2 style="font-family:Syne; margin-bottom:20px">Upload File</h2>
-    <input type="file" id="file-input" style="width:100%; margin-bottom:16px" />
-    <input type="text" id="file-desc" placeholder="Description (optional)" style="width:100%; padding:10px; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; margin-bottom:16px; outline:none" />
-    <div id="upload-status" style="font-size:.85rem; color:var(--muted); margin-bottom:16px; display:none"></div>
-    <div style="display:flex; gap:10px">
-      <button class="btn btn-ghost" style="flex:1; justify-content:center" onclick="window.closeModal('upload-modal')">Cancel</button>
-      <button class="btn btn-primary" id="btn-do-upload" style="flex:1; justify-content:center" onclick="window.doUpload()">Upload</button>
+    <div class="modal-title">Upload to Publicbox</div>
+    <div style="margin-top:20px">
+      <input type="file" id="upload-file" onchange="onFileSelect(event)" />
+      <input type="text" id="upload-desc" placeholder="Description..." style="width:100%;margin-top:10px;padding:8px" />
+      <button class="btn btn-primary" style="width:100%;margin-top:20px" onclick="doUpload()">Sign & Upload</button>
+      <button class="btn btn-secondary" style="width:100%;margin-top:10px" onclick="closeModal('upload-modal')">Cancel</button>
     </div>
   </div>
 </div>
 
-<div id="toast-container"></div>
+<div id="toast-container" class="toast-container"></div>
 
 <script>
-  const APP_KEY = 'publicbox_v5';
+  const APP_KEY = 'publicbox_v6';
+  const APTOS_NODE = 'https://fullnode.testnet.aptoslabs.com/v1';
   let aptos;
   let state = {
     wallet: null,
@@ -145,64 +206,43 @@
   };
 
   const initSDK = () => {
-    // Check for window.aptosSDK
-    const sdk = window.aptosSDK;
+    const sdk = window.aptosSDK || window.Aptos;
     if (!sdk) return setTimeout(initSDK, 200);
-    
     const { Aptos, AptosConfig, Network } = sdk;
-    const config = new AptosConfig({ network: Network.TESTNET });
-    aptos = new Aptos(config);
-    console.log('Aptos SDK initialized successfully');
+    aptos = new Aptos(new AptosConfig({ network: Network.TESTNET }));
+    console.log('Aptos SDK initialized');
   };
   initSDK();
 
   window.renderWalletList = () => {
     const list = document.getElementById('wallet-list');
-    if (!list) return;
-    const registered = [...window.__aptosWalletRegistry.values()];
-    
-    let html = registered.map(w => `
-      <div class="wallet-option" onclick="window.connectWallet('${w.name}')">
-        <img src="${w.icon}" style="width:24px; border-radius:4px">
-        <div style="flex:1; font-weight:600">${w.name}</div>
-        <div style="font-size:.7rem; color:var(--accent)">Installed</div>
-      </div>
-    `).join('');
-
-    if (registered.length === 0) {
-      html = `<div style="color:var(--muted); font-size:.85rem; padding:10px">No Aptos wallets detected. Please install Petra or Martian.</div>`;
-    }
-
+    const wallets = [...window.__aptosWalletRegistry.values()];
+    let html = wallets.map(w => `
+      <div class="wallet-option" onclick="connectWallet('${w.name}')">
+        <span class="w-icon"><img src="${w.icon}" style="width:28px"></span>
+        <div class="w-name">${w.name}</div>
+        <span class="w-badge badge-installed">Installed</span>
+      </div>`).join('');
+    if (!wallets.length) html = '<div style="color:var(--muted)">No Aptos wallets detected. Please install Petra or Martian.</div>';
     list.innerHTML = html;
   };
 
-  window.connectWallet = async (name) => {
+  const connectWallet = async (name) => {
     const wallet = window.__aptosWalletRegistry.get(name);
     try {
-      const response = await wallet.features['aptos:connect'].connect();
-      const account = response.account || (response.accounts && response.accounts[0]);
-      if (!account) throw new Error('No account found');
-      
-      state.wallet = { 
-        name, 
-        address: account.address.toString(), 
-        walletObj: wallet 
-      };
-      saveSession();
-      enterApp();
-      toast('Connected to ' + name);
-    } catch (e) {
-      console.error('Connection error:', e);
-      toast('Connection failed', 'error');
-    }
+      const resp = await wallet.features['aptos:connect'].connect();
+      const acct = resp.account || resp.accounts?.[0];
+      state.wallet = { name, address: acct.address.toString(), walletObj: wallet };
+      saveSession(); enterApp(); toast(`Connected to ${name}`, 'success');
+    } catch (e) { toast('Connect failed', 'error'); }
   };
 
-  window.loginAsGuest = () => {
+  const loginAsGuest = () => {
     state.wallet = { name: 'Guest', address: '0x0', isGuest: true };
     enterApp();
   };
 
-  window.disconnect = () => {
+  const disconnect = () => {
     localStorage.removeItem(APP_KEY + '_session');
     location.reload();
   };
@@ -211,179 +251,92 @@
     document.getElementById('connect-gate').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
     document.getElementById('wc-name').textContent = state.wallet.name;
-    document.getElementById('wc-addr').textContent = state.wallet.address.slice(0,10) + '...' + state.wallet.address.slice(-4);
-    fetchBalance();
-    renderFiles();
-    updateStats();
+    document.getElementById('wc-addr').textContent = state.wallet.address.slice(0,10) + '...';
+    fetchBalance(); renderFiles(); updateStats();
   };
 
   const fetchBalance = async () => {
-    if (!state.wallet || state.wallet.isGuest || !aptos) return;
+    if (state.wallet.isGuest || !aptos) return;
     try {
-      const resources = await aptos.getAccountResources({ accountAddress: state.wallet.address });
-      const coin = resources.find(r => r.type === '0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>');
-      if (coin) {
-        document.getElementById('wc-bal').textContent = `APT: ${(coin.data.coin.value / 1e8).toFixed(4)}`;
-      }
-    } catch (e) {
-      console.warn('Balance fetch failed:', e);
-    }
+      const res = await aptos.getAccountResources({ accountAddress: state.wallet.address });
+      const coin = res.find(r => r.type === '0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>');
+      if (coin) document.getElementById('wc-bal').textContent = `APT: ${(coin.data.coin.value / 1e8).toFixed(4)}`;
+    } catch (e) {}
   };
 
-  window.switchView = (v) => {
-    state.viewMode = v;
-    renderFiles();
-  };
+  const onFileSelect = (e) => { state.selectedFile = e.target.files[0]; };
 
-  window.openUpload = () => {
+  const doUpload = async () => {
+    if (!state.selectedFile) return toast('Select a file');
     if (state.wallet.isGuest) return toast('Guest mode is read-only', 'error');
-    window.openModal('upload-modal');
-  };
-
-  window.doUpload = async () => {
-    const file = document.getElementById('file-input').files[0];
-    if (!file) return toast('Select a file');
-    
-    const btn = document.getElementById('btn-do-upload');
-    const status = document.getElementById('upload-status');
-    btn.disabled = true;
-    status.style.display = 'block';
-    status.textContent = 'Reading file...';
-
     try {
-      const base64 = await fileToBase64(file);
-      status.textContent = 'Signing transaction...';
-      
-      const transaction = await state.wallet.walletObj.features['aptos:signAndSubmitTransaction'].signAndSubmitTransaction({
-        payload: {
-          function: "0x1::aptos_account::transfer",
-          typeArguments: [],
-          functionArguments: [state.wallet.address, "0"]
-        }
+      toast('Signing transaction...', 'info');
+      const tx = await state.wallet.walletObj.features['aptos:signAndSubmitTransaction'].signAndSubmitTransaction({
+        payload: { function: "0x1::aptos_account::transfer", typeArguments: [], functionArguments: [state.wallet.address, "0"] }
       });
-
-      const hash = transaction.hash || transaction.result?.hash;
-      status.textContent = 'Confirmed on-chain!';
-      
+      const hash = tx.hash || tx.result?.hash;
       const record = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: file.name,
-        size: file.size,
-        type: file.type,
+        id: Math.random().toString(36).substr(2,9),
+        name: state.selectedFile.name,
+        size: state.selectedFile.size,
         uploader: state.wallet.address,
         timestamp: Date.now(),
         tx: hash
       };
-
       state.files.unshift(record);
       localStorage.setItem(APP_KEY + '_files', JSON.stringify(state.files));
-      
-      setTimeout(() => {
-        window.closeModal('upload-modal');
-        renderFiles();
-        updateStats();
-        toast('Uploaded successfully!');
-        btn.disabled = false;
-        status.style.display = 'none';
-      }, 1000);
-
-    } catch (e) {
-      console.error('Upload error:', e);
-      toast('Upload failed: ' + (e.message || 'Unknown error'), 'error');
-      btn.disabled = false;
-      status.style.display = 'none';
-    }
+      renderFiles(); updateStats(); closeModal('upload-modal');
+      toast('Uploaded successfully', 'success');
+    } catch (e) { toast('Upload failed', 'error'); }
   };
 
   const renderFiles = () => {
     const container = document.getElementById('file-container');
     let files = state.files;
     if (state.viewMode === 'mine') files = files.filter(f => f.uploader === state.wallet.address);
-    
-    if (files.length === 0) {
-      container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted)">No files found</div>`;
-      return;
-    }
-
     container.innerHTML = files.map(f => `
       <div class="file-card">
-        <div style="font-size:2rem; margin-bottom:10px">${getIcon(f.type)}</div>
-        <div style="font-weight:600; font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${f.name}</div>
-        <div style="font-size:.7rem; color:var(--muted); margin-top:4px">${(f.size/1024).toFixed(1)} KB · ${relTime(f.timestamp)}</div>
-      </div>
-    `).join('');
+        <div class="fc-icon">📄</div>
+        <div class="fc-name">${f.name}</div>
+        <div style="font-size:.7rem;color:var(--muted)">${(f.size/1024).toFixed(1)} KB · ${new Date(f.timestamp).toLocaleDateString()}</div>
+      </div>`).join('') || '<div style="grid-column:1/-1;text-align:center">No files found</div>';
   };
 
   const updateStats = () => {
     document.getElementById('stat-total').textContent = state.files.length;
-    const mine = state.files.filter(f => f.uploader === state.wallet?.address).length;
-    document.getElementById('stat-mine').textContent = mine;
-    const size = state.files.reduce((acc, f) => acc + f.size, 0);
-    document.getElementById('stat-size').textContent = (size / 1024).toFixed(1) + ' KB';
+    document.getElementById('stat-mine').textContent = state.files.filter(f => f.uploader === state.wallet.address).length;
+    document.getElementById('stat-size').textContent = (state.files.reduce((a,b)=>a+b.size,0)/1024).toFixed(1) + ' KB';
   };
 
-  const saveSession = () => {
-    localStorage.setItem(APP_KEY + '_session', JSON.stringify({ name: state.wallet.name, address: state.wallet.address }));
-  };
+  const saveSession = () => localStorage.setItem(APP_KEY + '_session', JSON.stringify({ name: state.wallet.name, address: state.wallet.address, isGuest: state.wallet.isGuest }));
 
   const restoreSession = async () => {
-    const session = JSON.parse(localStorage.getItem(APP_KEY + '_session'));
-    if (session) {
-      await new Promise(r => setTimeout(r, 800));
-      const wallet = window.__aptosWalletRegistry.get(session.name);
-      if (wallet) {
-        state.wallet = { name: session.name, address: session.address, walletObj: wallet };
-        enterApp();
-        return true;
-      }
-    }
+    const s = JSON.parse(localStorage.getItem(APP_KEY + '_session'));
+    if (!s) return false;
+    if (s.isGuest) { loginAsGuest(); return true; }
+    const w = window.__aptosWalletRegistry.get(s.name);
+    if (w) { state.wallet = { name: s.name, address: s.address, walletObj: w }; enterApp(); return true; }
     return false;
   };
 
-  window.openModal = (id) => document.getElementById(id).classList.add('open');
-  window.closeModal = (id) => document.getElementById(id).classList.remove('open');
-  
-  const toast = (msg, type = 'info') => {
-    const el = document.createElement('div');
-    el.className = 'toast';
-    if (type === 'error') el.style.borderLeftColor = 'var(--danger)';
-    el.textContent = msg;
+  const openUploadModal = () => openModal('upload-modal');
+  const openModal = (id) => document.getElementById(id).classList.add('open');
+  const closeModal = (id) => document.getElementById(id).classList.remove('open');
+  const toast = (m, t) => {
+    const el = document.createElement('div'); el.className = `toast ${t}`; el.textContent = m;
     document.getElementById('toast-container').appendChild(el);
     setTimeout(() => el.remove(), 3000);
   };
 
-  const getIcon = (type) => {
-    if (type.startsWith('image/')) return '🖼️';
-    if (type.startsWith('video/')) return '🎬';
-    return '📄';
-  };
-
-  const relTime = (ts) => {
-    const diff = Date.now() - ts;
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'Just now';
-    if (mins < 60) return mins + 'm ago';
-    return Math.floor(mins / 60) + 'h ago';
-  };
-
-  const fileToBase64 = (f) => new Promise((res, rej) => {
-    const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(f);
-  });
-
   window.addEventListener('load', async () => {
     window.dispatchEvent(new Event('aptos:requestWallet'));
     await new Promise(r => setTimeout(r, 1000));
-    window.renderWalletList();
-    
+    renderWalletList();
     const splash = document.getElementById('splash');
     splash.style.opacity = '0';
-    setTimeout(() => splash.style.display = 'none', 500);
-
-    if (!(await restoreSession())) {
-      document.getElementById('connect-gate').style.display = 'flex';
-    }
+    setTimeout(() => { splash.style.display = 'none'; }, 500);
+    if (!(await restoreSession())) document.getElementById('connect-gate').style.display = 'flex';
   });
-
 </script>
 </body>
 </html>
